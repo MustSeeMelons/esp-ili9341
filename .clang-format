@@ -1,0 +1,14 @@
+BasedOnStyle: Microsoft # Or LLVM, Microsoft, WebKit, etc.
+IndentWidth: 4
+AllowShortFunctionsOnASingleLine: false
+AlignConsecutiveMacros: true
+ColumnLimit: 120
+MaxEmptyLinesToKeep: 1
+UseTab: Never
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+AlignAfterOpenBracket: Align
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Attach
+BreakConstructorInitializers: BeforeColon
+BreakStringLiterals: true
