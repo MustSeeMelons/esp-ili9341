@@ -4,6 +4,7 @@
 #include "esp_random.h"
 #include "include/defs.h"
 #include "math.h"
+#include <string.h>
 
 static const char *TAG = "TFT";
 
@@ -16,7 +17,7 @@ static scene_object_t scene_objects[TFT_SCENE_OBJECT_MAX];
 // Ids of objects currently on each scanline
 static scene_object_t *scanline_residents[TFT_WIDTH / TFT_SCANLINE_HEIGHT][TFT_SCENE_OBJECT_MAX] = {NULL};
 
-static uint8_t scanline[TFT_WIDTH * 2];
+static uint8_t scanline[TFT_WIDTH * TFT_SCANLINE_HEIGHT * 2];
 
 DRAM_ATTR static lcd_init_cmd_t ili_init_cmds[] = {
     {C_POWER_CONTROL_B, {0x00, 0x83, 0X30}, 3},
@@ -30,8 +31,8 @@ DRAM_ATTR static lcd_init_cmd_t ili_init_cmds[] = {
     {C_VCOM_CONTROL_1, {0x35, 0x3E}, 2},
     {C_VCOM_CONTROL_2, {0xBE}, 1},
     // XXX Should make this configurable at some point
-    {C_MEMORY_ACCESS_CONTROL, {0x48}, 1}, // MX + BGR
-    {C_PIXEL_FORMAT_SET, {0x55}, 1},      // 16 bit for RGB and MCU interfac
+    {C_MEMORY_ACCESS_CONTROL, {0x28}, 1},
+    {C_PIXEL_FORMAT_SET, {0x55}, 1}, // 16 bit for RGB and MCU interfac
     {C_FRAME_RATE_CONTROL_NORMAL, {0x00, 0x1B}, 2},
     {C_ENABLE_3G, {0x02}, 1}, // Disable extra gamma correction
     {C_GAMMA_SET, {0x02}, 1},
@@ -192,7 +193,7 @@ esp_err_t tft_init(void) {
 
     spi_device_interface_config_t devcfg = {
         // Up to 30 Mhz is fine
-        .clock_speed_hz = 100 * 1000, // 100 kHz
+        .clock_speed_hz = 30 * 1000 * 1000, // 30 MHz
         .mode = 0,
         .spics_io_num = -1,
         .queue_size = 1,
@@ -241,9 +242,9 @@ esp_err_t tft_init(void) {
     return err;
 }
 
-void tft_add_rectangle_to_scene(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color) {
+scene_object_t *tft_add_rectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color) {
     if (scene_index >= TFT_SCENE_OBJECT_MAX) {
-        return;
+        return NULL;
     }
 
     scene_object_t *obj = &scene_objects[scene_index++];
@@ -259,8 +260,7 @@ void tft_add_rectangle_to_scene(uint16_t x, uint16_t y, uint16_t width, uint16_t
     uint16_t start_scanline = floor(y / TFT_SCANLINE_HEIGHT);
     uint16_t end_scanline = ceil((float)(height + obj->y) / TFT_SCANLINE_HEIGHT);
 
-    ESP_LOGI(TAG, "Adding to scanlines [%d to %d]", start_scanline, end_scanline);
-
+    // Place it in the first empty slot
     for (int i = start_scanline; i <= end_scanline; i++) {
         for (int j = 0; j < TFT_SCENE_OBJECT_MAX; j++) {
             if (scanline_residents[i][j] == 0) {
@@ -269,40 +269,73 @@ void tft_add_rectangle_to_scene(uint16_t x, uint16_t y, uint16_t width, uint16_t
             }
         }
     }
+
+    return obj;
+}
+
+void update_scanline_residents() {
+    memset(scanline_residents, 0, sizeof(scanline_residents));
+
+    for (uint8_t i = 0; i < scene_index; i++) {
+        scene_object_t *obj = &scene_objects[i];
+
+        uint16_t start_scanline = floor(obj->y / TFT_SCANLINE_HEIGHT);
+        uint16_t end_scanline = ceil((float)(obj->y + obj->rectangle.height) / TFT_SCANLINE_HEIGHT);
+
+        for (int j = start_scanline; j <= end_scanline; j++) {
+            for (int k = 0; k < TFT_SCENE_OBJECT_MAX; k++) {
+                if (scanline_residents[j][k] == 0) {
+                    scanline_residents[j][k] = obj;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void tft_render_scene() {
+    // Go through each scanline
     for (size_t scanline_index = 0; scanline_index < TFT_HEIGHT / TFT_SCANLINE_HEIGHT; scanline_index++) {
+        // Clear scanline
+        memset(scanline, 0x00, TFT_WIDTH * TFT_SCANLINE_HEIGHT * 2);
+
+        // Get the height in pixels so we can decide if we use object height or scanline height for rendering
+        uint16_t scan_y_px_start = scanline_index * TFT_SCANLINE_HEIGHT;
+        uint16_t scan_y_px_end = scan_y_px_start + TFT_SCANLINE_HEIGHT;
+
         for (int j = 0; j < TFT_SCENE_OBJECT_MAX; j++) {
             // Render if we have a reference
             if (scanline_residents[scanline_index][j] != NULL) {
                 scene_object_t *obj = scanline_residents[scanline_index][j];
 
-                // Get the height in pixels so we can decide if we use object height or scanline height for rendering
-                uint16_t scan_y_px_start = scanline_index * TFT_SCANLINE_HEIGHT;
-                uint16_t scan_y_px_end = scan_y_px_start + TFT_SCANLINE_HEIGHT;
+                switch (obj->type) {
+                case OBJECT_RECTANGLE: {
+                    uint16_t x_start = obj->x;
+                    uint16_t x_end = MIN(obj->x + obj->rectangle.width, TFT_WIDTH);
 
-                // Set scanline window
+                    // clang-format off
+                    uint16_t object_y_start = obj->y > scan_y_px_start ? obj->y : scan_y_px_start;
+                    uint16_t object_y_end = MIN(obj->y + obj->rectangle.height < scan_y_px_end ? obj->y + obj->rectangle.height : scan_y_px_end, TFT_HEIGHT);
+                    // clang-format on
 
-                uint16_t x_start = obj->x;
-                uint16_t x_end = obj->x + obj->rectangle.width;
+                    // Fill object colors
+                    for (uint16_t y = object_y_start; y < object_y_end; y++) {
+                        uint16_t row = y - scan_y_px_start; // Which row of the scanline we are on
 
-                // clang-format off
-                uint16_t y_start = obj->y > scan_y_px_start ? obj->y : scan_y_px_start;
-                uint16_t y_end = obj->y + obj->rectangle.height < scan_y_px_end ? obj->y + obj->rectangle.height : scan_y_px_end;
-                // clang-format on
-
-                tft_set_window(x_start, y_start, x_end - 1, y_end - 1);
-
-                tft_set_window(0, scan_y_px_start, TFT_WIDTH - 1, scan_y_px_start + TFT_SCANLINE_HEIGHT - 1);
-
-                for (int x = 0; x < (x_end - x_start); x++) {
-                    scanline[x * 2] = obj->rectangle.color >> 8;
-                    scanline[x * 2 + 1] = obj->rectangle.color & 0xFF;
+                        for (uint16_t x = x_start; x < x_end; x++) {
+                            scanline[(row * TFT_WIDTH + x) * 2] = obj->rectangle.color >> 8;
+                            scanline[(row * TFT_WIDTH + x) * 2 + 1] = obj->rectangle.color & 0xFF;
+                        }
+                    }
+                    break;
+                }
+                case OBJECT_TEXT: {
+                    break;
                 }
 
-                for (int y = 0; y < (y_end - y_start); y++) {
-                    tft_send_data(scanline, (x_end - x_start) * 2);
+                default:
+                    ESP_LOGI(TAG, "Can't render %d", obj->type);
+                    break;
                 }
 
             } else {
@@ -310,6 +343,9 @@ void tft_render_scene() {
                 break;
             }
         }
+
+        tft_set_window(0, scan_y_px_start, TFT_WIDTH - 1, scan_y_px_start + TFT_SCANLINE_HEIGHT - 1);
+        tft_send_data(scanline, TFT_WIDTH * TFT_SCANLINE_HEIGHT * 2);
     }
 }
 

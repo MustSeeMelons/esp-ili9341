@@ -6,7 +6,7 @@
 
 #define TFT_SCENE_OBJECT_MAX 32
 // Must divide the screen height with no remainder!
-#define TFT_SCANLINE_HEIGHT 4
+#define TFT_SCANLINE_HEIGHT 2
 
 typedef struct {
     uint8_t cmd;
@@ -17,6 +17,7 @@ typedef struct {
 typedef enum uint8_t
 {
     OBJECT_RECTANGLE,
+    OBJECT_TEXT,
     OBJECT_CIRCLE
 } scene_object_type_t;
 
@@ -31,6 +32,11 @@ typedef struct {
             uint16_t height;
             uint16_t color;
         } rectangle;
+        struct {
+            char *text;
+            uint16_t font_size;
+            uint16_t color;
+        } text;
     };
 } scene_object_t;
 
@@ -52,7 +58,8 @@ void tft_set_window(uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t
 
 void tft_render_scene();
 
-// TODO rename, way too long
-void tft_add_rectangle_to_scene(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
+void update_scanline_residents();
+
+scene_object_t *tft_add_rectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
 
 #endif

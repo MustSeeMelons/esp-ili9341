@@ -1,6 +1,8 @@
 
 #include "esp_log.h"
+#include "include/defs.h"
 #include "include/tft.h"
+#include "include/utils.h"
 #include <stdio.h>
 
 static const char *TAG = "Main";
@@ -14,10 +16,16 @@ void app_main(void) {
         return;
     }
 
-    tft_add_rectangle_to_scene(10, 10, 50, 50, 0xF80A);
+    scene_object_t *obj = tft_add_rectangle(0, 0, 50, 50, get_color565(64, 128, 128));
     tft_render_scene();
 
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(250));
+        obj->x = (obj->x + 1) % TFT_WIDTH;
+        obj->y = (obj->y + 1) % TFT_HEIGHT;
+
+        update_scanline_residents();
+
+        tft_render_scene();
+        // vTaskDelay(1);
     }
 }

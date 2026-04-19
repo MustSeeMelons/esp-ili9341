@@ -98,4 +98,7 @@
 #define C_ENABLE_3G                  0xF2
 #define C_PUMP_RATIO_CONTROL         0xF7
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 #endif
