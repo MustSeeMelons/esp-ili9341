@@ -62,4 +62,6 @@ void update_scanline_residents();
 
 scene_object_t *tft_add_rectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
 
+scene_object_t *tft_add_text(uint16_t x, uint16_t y, char *text, uint16_t font_size, uint16_t color);
+
 #endif

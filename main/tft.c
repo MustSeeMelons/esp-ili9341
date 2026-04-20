@@ -134,6 +134,7 @@ void tft_send_data_byte(uint8_t data) {
 }
 
 void tft_send_data(uint8_t *data, size_t len) {
+    // TODO use registers directly?
     gpio_set_level(TFT_CS, 0);
     gpio_set_level(TFT_DC, 1); // Data
 
@@ -293,6 +294,36 @@ void update_scanline_residents() {
     }
 }
 
+scene_object_t *tft_add_text(uint16_t x, uint16_t y, char *text, uint16_t font_size, uint16_t color) {
+    if (scene_index >= TFT_SCENE_OBJECT_MAX) {
+        return NULL;
+    }
+
+    scene_object_t *obj = &scene_objects[scene_index++];
+
+    obj->id = scene_object_id_counter++;
+    obj->type = OBJECT_TEXT;
+    obj->x = x;
+    obj->y = y;
+    obj->text.text = text;
+    obj->text.font_size = font_size;
+    obj->text.color = color;
+
+    uint16_t start_scanline = floor(y / TFT_SCANLINE_HEIGHT);
+    uint16_t end_scanline = ceil((float)(8 * font_size + obj->y) / TFT_SCANLINE_HEIGHT);
+
+    for (int i = start_scanline; i <= end_scanline; i++) {
+        for (int j = 0; j < TFT_SCENE_OBJECT_MAX; j++) {
+            if (scanline_residents[i][j] == 0) {
+                scanline_residents[i][j] = obj;
+                break;
+            }
+        }
+    }
+
+    return obj;
+}
+
 void tft_render_scene() {
     // Go through each scanline
     for (size_t scanline_index = 0; scanline_index < TFT_HEIGHT / TFT_SCANLINE_HEIGHT; scanline_index++) {
@@ -330,6 +361,8 @@ void tft_render_scene() {
                     break;
                 }
                 case OBJECT_TEXT: {
+                    // XXX well well well... what do we do now?
+
                     break;
                 }
 
