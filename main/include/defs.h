@@ -4,13 +4,14 @@
 #define TFT_CS    4 // CSX
 #define TFT_RESET 5
 #define TFT_DC    15 // D/CX Data/command. High = data, Low = command
-#define TFT_MOSI  22
-#define TFT_SCK   18 // SCL Clock
+#define TFT_MOSI  13
+#define TFT_SCK   14 // SCL Clock
 #define TFT_LED   23 // Backlight
-#define TFT_MISO  19
+#define TFT_MISO  12
 
-#define TFT_HEIGHT 240
-#define TFT_WIDTH  320
+// Physical dimensions of the display, portrait
+#define TFT_HEIGHT 320
+#define TFT_WIDTH  240
 
 #define C_SOFT_RESET                          0x01
 #define C_READ_DISPLAY_ID                     0x04
@@ -100,5 +101,23 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+// GPIO Matrix
+#define GPIO_BASE             0x3FF44000
+#define GPIO_OUT_REG          ((volatile uint32_t *)(GPIO_BASE + 0x0004)) // Current state ...31
+#define GPIO_OUT_W1TS_REG     ((volatile uint32_t *)(GPIO_BASE + 0x0008)) // Write 1 to set output
+#define GPIO_OUT_W1TC_REG     ((volatile uint32_t *)(GPIO_BASE + 0x000C)) // Write 1 to clear output
+#define GPIO_OUT1_REG         ((volatile uint32_t *)(GPIO_BASE + 0x0010)) // 32...
+#define GPIO_OUT1_W1TS_REG    ((volatile uint32_t *)(GPIO_BASE + 0x0014))
+#define GPIO_OUT1_W1TC_REG    ((volatile uint32_t *)(GPIO_BASE + 0x0018))
+#define GPIO_ENABLE_REG       ((volatile uint32_t *)(GPIO_BASE + 0x0020)) // Current state
+#define GPIO_ENABLE_W1TS_REG  ((volatile uint32_t *)(GPIO_BASE + 0x0024)) // Write 1 to set output
+#define GPIO_ENABLE_W1TC_REG  ((volatile uint32_t *)(GPIO_BASE + 0x0028)) // Write 1 to clear output
+#define GPIO_ENABLE1_REG      ((volatile uint32_t *)(GPIO_BASE + 0x002C)) // 32...
+#define GPIO_ENABLE1_W1TS_REG ((volatile uint32_t *)(GPIO_BASE + 0x0030))
+#define GPIO_ENABLE1_W1TC_REG ((volatile uint32_t *)(GPIO_BASE + 0x0034))
+
+// IO Mux
+#define IO_MUX_BASE 0x3FF49000
 
 #endif
