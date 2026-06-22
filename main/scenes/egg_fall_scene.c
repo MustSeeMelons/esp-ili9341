@@ -1,5 +1,5 @@
-#include "../include/scene.h"
-#include "../include/tft.h"
+#include "include/scene.h"
+#include "include/tft.h"
 #include "include/utils.h"
 #include <math.h>
 

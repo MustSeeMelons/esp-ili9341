@@ -4,6 +4,7 @@
 #include "esp_random.h"
 #include "include/defs.h"
 #include "include/font.h"
+#include "include/utils.h"
 #include "math.h"
 #include <string.h>
 
@@ -24,6 +25,7 @@ static scene_object_t scene_objects[TFT_SCENE_OBJECT_MAX];
 static scene_object_t *scanline_residents[TFT_HEIGHT / TFT_SCANLINE_HEIGHT][TFT_SCENE_OBJECT_MAX] = {NULL};
 
 // Each pixel is a uint_16, 565 bit colors
+// heap_caps_alloc made it slower for some reason
 static uint8_t scanline[TFT_HEIGHT * TFT_SCANLINE_HEIGHT * 2];
 
 static lcd_init_cmd_t ili_init_cmds[] = {
@@ -506,13 +508,36 @@ scene_object_t *tft_add_line(
     return obj;
 }
 
-scene_object_t *tft_add_triangle(int16_t vertices[3][2], uint16_t color) {
+scene_object_t *tft_add_triangle(vector2_t vertices[3], uint16_t color) {
     if (scene_index >= TFT_SCENE_OBJECT_MAX) {
         return NULL;
     }
 
-    // TODO implement
-    return NULL;
+    scene_object_t *obj = &scene_objects[scene_index++];
+    obj->id = scene_object_id_counter++;
+    obj->type = OBJECT_TRIANGLE;
+    memcpy(obj->triangle.vertices, vertices, sizeof(obj->triangle.vertices));
+    obj->triangle.color = color;
+
+    uint16_t total_scanlines = tft_scanline_count();
+
+    int16_t start_scanline = get_min_y(obj->triangle.vertices) / TFT_SCANLINE_HEIGHT;
+    int16_t end_scanline = get_max_y(obj->triangle.vertices) / TFT_SCANLINE_HEIGHT;
+
+    for (int i = start_scanline; i <= end_scanline; i++) {
+        if (i < 0 || i >= total_scanlines) {
+            continue;
+        }
+
+        for (int j = 0; j < TFT_SCENE_OBJECT_MAX; j++) {
+            if (scanline_residents[i][j] == 0) {
+                scanline_residents[i][j] = obj;
+                break;
+            }
+        }
+    }
+
+    return obj;
 }
 
 static void tft_render_line(
@@ -686,11 +711,11 @@ void tft_render_scene() {
                     int16_t y_start = MIN(MAX(obj->y > scan_y_px_start ? obj->y : scan_y_px_start, 0), curr_display_height);
                     int16_t y_end = MIN(MAX(obj->line.y_end < scan_y_px_end ? obj->line.y_end : scan_y_px_end, 0), curr_display_height);
                     
-                    float t_start = (float) (y_start - obj->y) / (obj->line.y_end - obj->y);
-                    float t_end = (float) (y_end - obj->y) / (obj->line.y_end - obj->y);
+                    float t_start = get_blend_factor(y_start, obj->y, obj->line.y_end);
+                    float t_end = get_blend_factor(y_end, obj->y, obj->line.y_end);
                     
-                    int16_t x_start = MAX( obj->x + (float) t_start * (obj->line.x_end - obj->x), 0);
-                    int16_t x_end = MIN(obj->x + (float) t_end * (obj->line.x_end - obj->x), curr_display_width);
+                    int16_t x_start = MAX(lerp_i(obj->x, obj->line.x_end, t_start), 0);
+                    int16_t x_end = MIN(lerp_i(obj->x, obj->line.x_end, t_end), curr_display_width);
                     // clang-format on
 
                     if (obj->line.stroke > 1) {
@@ -718,6 +743,13 @@ void tft_render_scene() {
                         tft_render_line(scan_y_px_start, x_start, y_start, x_end, y_end, obj->line.color);
                     }
 
+                    break;
+                }
+                case OBJECT_TRIANGLE: {
+                    // TODO min y of scanline of all vertices
+                    // TODO max y of scanline of all vertices
+                    // TODO
+                    // TODO calc bounding box for scanline and do edge function rendering!
                     break;
                 }
                 default:

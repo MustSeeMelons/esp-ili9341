@@ -24,6 +24,11 @@ typedef enum
 } scene_object_type_t;
 
 typedef struct {
+    int16_t x;
+    int16_t y;
+} vector2_t;
+
+typedef struct {
     uint8_t id;
     scene_object_type_t type;
     int16_t x;
@@ -45,7 +50,7 @@ typedef struct {
             uint16_t color;
         } circle;
         struct {
-            int16_t vertices[3][2];
+            vector2_t vertices[3];
             uint16_t color;
         } triangle;
         struct {
@@ -95,7 +100,7 @@ scene_object_t *tft_add_text(int16_t x, int16_t y, char *text, uint16_t font_siz
 
 scene_object_t *tft_add_circle(int16_t x, int16_t y, uint16_t radius, uint16_t color);
 
-scene_object_t *tft_add_triangle(int16_t vertices[3][2], uint16_t color);
+scene_object_t *tft_add_triangle(vector2_t vertices[3], uint16_t color);
 
 scene_object_t *tft_add_line(
     int16_t x_start, int16_t y_start, int16_t x_end, int16_t y_end, uint16_t color, uint8_t stroke);

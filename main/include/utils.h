@@ -1,18 +1,19 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include "include/tft.h"
 #include "stdint.h"
 
-static inline uint16_t get_color565(uint8_t r, uint8_t g, uint8_t b) {
-    uint16_t red = (r & 0xf8) << 8;
-    uint16_t green = (g & 0xfc) << 3;
-    uint16_t blue = (b & 0xf8) >> 3;
+uint16_t get_color565(uint8_t r, uint8_t g, uint8_t b);
 
-    return red | green | blue;
-}
+float lerp_f(float start, float end, float blend_factor);
 
-static inline uint16_t lerp(uint16_t v0, uint16_t v1, float t) {
-    return (1 - t) * v0 + t * v1;
-}
+int16_t lerp_i(int16_t start, int16_t end, float blend_factor);
+
+float get_blend_factor(int16_t value, int16_t value_start, int16_t value_end);
+
+uint16_t get_min_y(vector2_t vertices[3]);
+
+uint16_t get_max_y(vector2_t vertices[3]);
 
 #endif
