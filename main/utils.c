@@ -25,7 +25,31 @@ float get_blend_factor(int16_t value, int16_t value_start, int16_t value_end) {
     }
 }
 
-uint16_t get_min_y(vector2_t vertices[3]) {
+int16_t get_min_x(vector2_t vertices[3]) {
+    int16_t min_x = vertices[0].x;
+
+    for (int i = 1; i < 3; i++) {
+        if (vertices[i].x < min_x) {
+            min_x = vertices[i].x;
+        }
+    }
+
+    return min_x;
+}
+
+int16_t get_max_x(vector2_t vertices[3]) {
+    int16_t max_x = vertices[0].x;
+
+    for (int i = 1; i < 3; i++) {
+        if (vertices[i].x > max_x) {
+            max_x = vertices[i].x;
+        }
+    }
+
+    return max_x;
+}
+
+int16_t get_min_y(vector2_t vertices[3]) {
     int16_t min_y = vertices[0].y;
 
     for (int i = 1; i < 3; i++) {
@@ -37,7 +61,7 @@ uint16_t get_min_y(vector2_t vertices[3]) {
     return min_y;
 }
 
-uint16_t get_max_y(vector2_t vertices[3]) {
+int16_t get_max_y(vector2_t vertices[3]) {
     int16_t max_y = vertices[0].y;
 
     for (int i = 1; i < 3; i++) {
@@ -47,4 +71,8 @@ uint16_t get_max_y(vector2_t vertices[3]) {
     }
 
     return max_y;
+}
+
+int32_t edge_function(vector2_t a, vector2_t b, vector2_t c) {
+    return (int32_t)(b.x - a.x) * (c.y - a.y) - (int32_t)(b.y - a.y) * (c.x - a.x);
 }

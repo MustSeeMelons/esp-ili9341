@@ -518,11 +518,15 @@ scene_object_t *tft_add_triangle(vector2_t vertices[3], uint16_t color) {
     obj->type = OBJECT_TRIANGLE;
     memcpy(obj->triangle.vertices, vertices, sizeof(obj->triangle.vertices));
     obj->triangle.color = color;
+    obj->triangle.min_x = get_min_x(vertices);
+    obj->triangle.max_x = get_max_x(vertices);
+    obj->triangle.min_y = get_min_y(vertices);
+    obj->triangle.max_y = get_max_y(vertices);
 
     uint16_t total_scanlines = tft_scanline_count();
 
-    int16_t start_scanline = get_min_y(obj->triangle.vertices) / TFT_SCANLINE_HEIGHT;
-    int16_t end_scanline = get_max_y(obj->triangle.vertices) / TFT_SCANLINE_HEIGHT;
+    int16_t start_scanline = obj->triangle.min_y / TFT_SCANLINE_HEIGHT;
+    int16_t end_scanline = obj->triangle.max_y / TFT_SCANLINE_HEIGHT;
 
     for (int i = start_scanline; i <= end_scanline; i++) {
         if (i < 0 || i >= total_scanlines) {
@@ -746,10 +750,42 @@ void tft_render_scene() {
                     break;
                 }
                 case OBJECT_TRIANGLE: {
-                    // TODO min y of scanline of all vertices
-                    // TODO max y of scanline of all vertices
-                    // TODO
-                    // TODO calc bounding box for scanline and do edge function rendering!
+                    // clang-format off
+                    int16_t y_start = MIN(MAX(obj->triangle.min_y > scan_y_px_start ? obj->triangle.min_y : scan_y_px_start, 0), curr_display_height);
+                    int16_t y_end = MIN(MAX(obj->triangle.max_y < scan_y_px_end ? obj->triangle.max_y : scan_y_px_end, 0), curr_display_height);
+
+                    // TODO Calculate min/max x bounds for the triangle in this scanline
+                    int16_t x_start = MAX(obj->triangle.min_x, 0);
+                    int16_t x_end = MIN(obj->triangle.max_x, curr_display_width);
+                    // clang-format on
+
+                    int32_t area =
+                        edge_function(obj->triangle.vertices[0], obj->triangle.vertices[1], obj->triangle.vertices[2]);
+
+                    if (area == 0) {
+                        break;
+                    }
+
+                    for (int16_t y = y_start; y < y_end; y++) {
+                        int16_t scanline_row = y - scan_y_px_start;
+
+                        for (int16_t x = x_start; x < x_end; x++) {
+                            vector2_t p = {x, y};
+
+                            int32_t abp = edge_function(obj->triangle.vertices[0], obj->triangle.vertices[1], p);
+
+                            int32_t bcp = edge_function(obj->triangle.vertices[1], obj->triangle.vertices[2], p);
+
+                            int32_t cap = edge_function(obj->triangle.vertices[2], obj->triangle.vertices[0], p);
+
+                            if ((area > 0 && abp >= 0 && bcp >= 0 && cap >= 0) ||
+                                (area < 0 && abp <= 0 && bcp <= 0 && cap <= 0)) {
+                                scanline[(scanline_row * curr_display_width + x) * 2] = obj->triangle.color >> 8;
+                                scanline[(scanline_row * curr_display_width + x) * 2 + 1] = obj->triangle.color & 0xFF;
+                            }
+                        }
+                    }
+
                     break;
                 }
                 default:

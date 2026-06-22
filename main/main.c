@@ -48,7 +48,7 @@ void app_main(void) {
         return;
     }
 
-    line_scene.scene_init(NULL);
+    triangles_scene.scene_init(NULL);
 
     // FPS text should be added last
     scene_object_t *fps_text = tft_add_text(0, 0, "FPS: 0", 1, get_color565(255, 255, 255));
@@ -56,7 +56,7 @@ void app_main(void) {
     tft_render_scene();
 
     while (1) {
-        line_scene.scene_update(NULL);
+        triangles_scene.scene_update(NULL);
 
         app_do_fps(fps_text);
         tft_render_scene();

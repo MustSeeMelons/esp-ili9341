@@ -51,6 +51,10 @@ typedef struct {
         } circle;
         struct {
             vector2_t vertices[3];
+            int16_t min_x;
+            int16_t min_y;
+            int16_t max_x;
+            int16_t max_y;
             uint16_t color;
         } triangle;
         struct {
