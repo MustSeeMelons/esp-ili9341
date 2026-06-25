@@ -10,9 +10,9 @@ scene_object_t *triangle = NULL;
 void triangles_init(void *ctx) {
     // clang-format off
     triangle = tft_add_triangle((vector2_t[3]){
-        {.x = 0, .y = 0},
-        {.x = curr_display_width, .y = curr_display_height /2 },
-        {.x = 0, .y = curr_display_height}
+        {.x = 50, .y = 10},
+        {.x = 10, .y = 90 },
+        {.x = 100, .y = 200}
     }, get_color565(255, 0, 0));
     // clang-format on
 }

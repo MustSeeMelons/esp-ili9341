@@ -8,6 +8,8 @@
 #include "math.h"
 #include <string.h>
 
+// TODO this is getting a tad large - split off into gfx? (object rendering logic and initialization)
+
 static const char *TAG = "TFT";
 
 static uint16_t scene_object_id_counter = 1;
@@ -67,6 +69,27 @@ static spi_device_handle_t spi_handle;
 static inline uint16_t tft_scanline_count(void) {
     // Integer ceiling division
     return (curr_display_height + TFT_SCANLINE_HEIGHT - 1) / TFT_SCANLINE_HEIGHT;
+}
+
+static void tft_triangle_update(scene_object_t *obj) {
+    if (obj->type != OBJECT_TRIANGLE) {
+        return;
+    }
+
+    obj->triangle.min_x = get_min_x(obj->triangle.vertices);
+    obj->triangle.max_x = get_max_x(obj->triangle.vertices);
+    obj->triangle.min_y = get_min_y(obj->triangle.vertices);
+    obj->triangle.max_y = get_max_y(obj->triangle.vertices);
+
+    // Edge functions are linear, so we can calcualte the step
+    obj->triangle.ab.step_x = -(obj->triangle.vertices[1].y - obj->triangle.vertices[0].y);
+    obj->triangle.ab.step_y = (obj->triangle.vertices[1].x - obj->triangle.vertices[0].x);
+
+    obj->triangle.bc.step_x = -(obj->triangle.vertices[2].y - obj->triangle.vertices[1].y);
+    obj->triangle.bc.step_y = (obj->triangle.vertices[2].x - obj->triangle.vertices[1].x);
+
+    obj->triangle.ca.step_x = -(obj->triangle.vertices[0].y - obj->triangle.vertices[2].y);
+    obj->triangle.ca.step_y = (obj->triangle.vertices[0].x - obj->triangle.vertices[2].x);
 }
 
 static void tft_set_command_data(uint8_t command_id, uint8_t *data, uint8_t data_len) {
@@ -518,10 +541,8 @@ scene_object_t *tft_add_triangle(vector2_t vertices[3], uint16_t color) {
     obj->type = OBJECT_TRIANGLE;
     memcpy(obj->triangle.vertices, vertices, sizeof(obj->triangle.vertices));
     obj->triangle.color = color;
-    obj->triangle.min_x = get_min_x(vertices);
-    obj->triangle.max_x = get_max_x(vertices);
-    obj->triangle.min_y = get_min_y(vertices);
-    obj->triangle.max_y = get_max_y(vertices);
+
+    tft_triangle_update(obj);
 
     uint16_t total_scanlines = tft_scanline_count();
 
@@ -765,20 +786,22 @@ void tft_render_scene() {
                         break;
                     }
 
+                    vector2_t p = {x_start, y_start};
+
+                    int32_t abp_row = edge_function(obj->triangle.vertices[0], obj->triangle.vertices[1], p);
+                    int32_t bcp_row = edge_function(obj->triangle.vertices[1], obj->triangle.vertices[2], p);
+                    int32_t cap_row = edge_function(obj->triangle.vertices[2], obj->triangle.vertices[0], p);
+
                     for (int16_t y = y_start; y < y_end; y++) {
                         int16_t scanline_row = y - scan_y_px_start;
 
+                        int32_t abp = abp_row;
+                        int32_t bcp = bcp_row;
+                        int32_t cap = cap_row;
+
                         for (int16_t x = x_start; x < x_end; x++) {
-                            vector2_t p = {x, y};
 
-                            int32_t abp = edge_function(obj->triangle.vertices[0], obj->triangle.vertices[1], p);
-
-                            int32_t bcp = edge_function(obj->triangle.vertices[1], obj->triangle.vertices[2], p);
-
-                            int32_t cap = edge_function(obj->triangle.vertices[2], obj->triangle.vertices[0], p);
-
-                            // If signed area is positive, all edge functions should be positive and vice versa for
-                            // negative.
+                            // If signed area is positive, all edge functions should be positive and vice versa
                             bool positive = signed_area > 0 && abp >= 0 && bcp >= 0 && cap >= 0;
                             bool negative = signed_area < 0 && abp <= 0 && bcp <= 0 && cap <= 0;
 
@@ -786,7 +809,15 @@ void tft_render_scene() {
                                 scanline[(scanline_row * curr_display_width + x) * 2] = obj->triangle.color >> 8;
                                 scanline[(scanline_row * curr_display_width + x) * 2 + 1] = obj->triangle.color & 0xFF;
                             }
+
+                            abp += obj->triangle.ab.step_x;
+                            bcp += obj->triangle.bc.step_x;
+                            cap += obj->triangle.ca.step_x;
                         }
+
+                        abp_row += obj->triangle.ab.step_y;
+                        bcp_row += obj->triangle.bc.step_y;
+                        cap_row += obj->triangle.ca.step_y;
                     }
 
                     break;
@@ -804,6 +835,17 @@ void tft_render_scene() {
 
         tft_set_window(0, scan_y_px_start, curr_display_width - 1, scan_y_px_end - 1);
         tft_send_data(scanline, curr_display_width * scanline_height * 2);
+    }
+}
+
+void tft_update_scene_object(scene_object_t *obj) {
+    switch (obj->type) {
+    case OBJECT_TRIANGLE:
+        tft_triangle_update(obj);
+        break;
+    default:
+        // Most dont need anything
+        break;
     }
 }
 

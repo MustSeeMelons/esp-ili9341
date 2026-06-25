@@ -29,6 +29,11 @@ typedef struct {
 } vector2_t;
 
 typedef struct {
+    int32_t step_x;
+    int32_t step_y;
+} edge_step_t;
+
+typedef struct {
     uint8_t id;
     scene_object_type_t type;
     int16_t x;
@@ -55,6 +60,9 @@ typedef struct {
             int16_t min_y;
             int16_t max_x;
             int16_t max_y;
+            edge_step_t ab;
+            edge_step_t bc;
+            edge_step_t ca;
             uint16_t color;
         } triangle;
         struct {
@@ -108,5 +116,7 @@ scene_object_t *tft_add_triangle(vector2_t vertices[3], uint16_t color);
 
 scene_object_t *tft_add_line(
     int16_t x_start, int16_t y_start, int16_t x_end, int16_t y_end, uint16_t color, uint8_t stroke);
+
+void tft_update_scene_object(scene_object_t *obj);
 
 #endif

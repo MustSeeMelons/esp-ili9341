@@ -9,6 +9,7 @@ It implements a scanline rasterizer which can:
 - Circles
 - Bitmap fonts
 - Lines
+- Triangles
 
 Upon adding something you get a handle to edit the objects properties. 
 Animations can be done using scenes.
@@ -33,8 +34,9 @@ Channel 1 = MISO
 Channel 2 = DCX
 Channel 3 = CX
 
-# TODO
+# TODO/Wishlist
 
-- Triangle rendering
-- Rotating cube
-- Polygons
+- Rotating cube (matrixes)
+- Positions for each scene object (some already have this) for easy movement across the screen
+- Polygons (would be required if we wish to rotate a rectangle)
+- Object rotation (Triangles/Polygons)
