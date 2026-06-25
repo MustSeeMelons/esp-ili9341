@@ -754,15 +754,14 @@ void tft_render_scene() {
                     int16_t y_start = MIN(MAX(obj->triangle.min_y > scan_y_px_start ? obj->triangle.min_y : scan_y_px_start, 0), curr_display_height);
                     int16_t y_end = MIN(MAX(obj->triangle.max_y < scan_y_px_end ? obj->triangle.max_y : scan_y_px_end, 0), curr_display_height);
 
-                    // TODO Calculate min/max x bounds for the triangle in this scanline
                     int16_t x_start = MAX(obj->triangle.min_x, 0);
                     int16_t x_end = MIN(obj->triangle.max_x, curr_display_width);
                     // clang-format on
 
-                    int32_t area =
+                    int32_t signed_area =
                         edge_function(obj->triangle.vertices[0], obj->triangle.vertices[1], obj->triangle.vertices[2]);
 
-                    if (area == 0) {
+                    if (signed_area == 0) {
                         break;
                     }
 
@@ -778,8 +777,12 @@ void tft_render_scene() {
 
                             int32_t cap = edge_function(obj->triangle.vertices[2], obj->triangle.vertices[0], p);
 
-                            if ((area > 0 && abp >= 0 && bcp >= 0 && cap >= 0) ||
-                                (area < 0 && abp <= 0 && bcp <= 0 && cap <= 0)) {
+                            // If signed area is positive, all edge functions should be positive and vice versa for
+                            // negative.
+                            bool positive = signed_area > 0 && abp >= 0 && bcp >= 0 && cap >= 0;
+                            bool negative = signed_area < 0 && abp <= 0 && bcp <= 0 && cap <= 0;
+
+                            if (positive || negative) {
                                 scanline[(scanline_row * curr_display_width + x) * 2] = obj->triangle.color >> 8;
                                 scanline[(scanline_row * curr_display_width + x) * 2 + 1] = obj->triangle.color & 0xFF;
                             }
